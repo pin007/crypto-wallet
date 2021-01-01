@@ -229,8 +229,8 @@ function fetchCryptoCompare(api) {
 
 /**
  * @customfunction
- * @param {"[EXCHANGE:]FROM[/TO]"} ticker The crypto data to fetch, FROM is source and TO is target currency for
- *   conversion, default is "BTC/USD".
+ * @param {"[EXCHANGE:]FROM[/TO]"} ticker The crypto data to fetch, name of EXCHANGE is case-insensitive FROM is source
+ *   and TO is target currency for conversion, default is "BTC/USD".
  * @param {"image"|"ohlcv_day"|"ohlcv_hour"|"ohlcv_minute"|"price"|...} attribute The attribute that should be returned
  *   for given currency, default is "price". For generic attributes see CryptoCompare API documentation
  *   https://min-api.cryptocompare.com/documentation?key=Price&cat=multipleSymbolsFullPriceEndpoint.
@@ -284,11 +284,20 @@ function CRYPTOWALLET(ticker, attribute, limit, trigger) {
       return result;
     }
   } else {
-    data = fetchCryptoCompare(`/pricemultifull?fsyms=${fromSymbol}&tsyms=${toSymbol}`);
     if (attr === 'IMAGE') {
+      data = fetchCryptoCompare(`/pricemultifull?fsyms=${fromSymbol}&tsyms=${toSymbol}`);
       return 'https://cryptocompare.com/' + data.RAW[fromSymbol][toSymbol]['IMAGEURL'];
-    } else if (attr in data.RAW[fromSymbol][toSymbol]) {
-      return data.RAW[fromSymbol][toSymbol][attr];
+    } else {
+      if (exchange) {
+        data = fetchCryptoCompare(`/generateAvg?e=${exchange}&fsym=${fromSymbol}&tsym=${toSymbol}`);
+        data = data.RAW;
+      } else {
+        data = fetchCryptoCompare(`/pricemultifull?fsyms=${fromSymbol}&tsyms=${toSymbol}`);
+        data = data.RAW[fromSymbol][toSymbol];
+      }
+    }
+    if (attr in data) {
+      return data[attr];
     } else {
       throw new TypeError(`Unknown attribute "${attr}", please check CryptoCompare API documentation`)
     }
