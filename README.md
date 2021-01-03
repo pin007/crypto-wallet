@@ -61,7 +61,9 @@ Currently, selection of exchange is not supported, all data are based on
   case-insensitive, `FROM` source symbol for data conversion, `TO` destination symbol for conversion (default "USD"),
   default `"BTC/USD""`;
 - `attribute`: attribute for `FROM` symbol to return, see [Attributes](#attributes) for details; 
-- `limit`: number of entries to return for OHLCV history data, CryptoCompare returns `limit` entries plus one - current; 
+- `limit` number of returned OHLCV data points, default `1`;
+- `toDate` return OHLCV data points before given date and time, note that TODAY() function returns time part of 00:00:00 
+  respective to time zone of active Spreadsheet, the OHLCV history data use UTC time zone;
 - `trigger`: this is helper attribute, which can be used for user initiated data update, see [Examples](#examples).
 
 ### Attributes
@@ -180,10 +182,11 @@ The percentage change in history data set:
 - current price of BTC in EUR on Coinbase: `= CRYPTOWALLET("COINBASE:BTC/EUR", "PRICE")`;
 - low price in last 24 hours: `= CRYPTOWALLET("BTC", "LOW24HOUR")`;
 - display icon of crypto: `= IMAGE(CRYPTOWALLET("ETH", "IMAGE"))`;
-- complete OHLCV data: `= SPARKLINE(INDEX(CRYPTOWALLET($B2, "OHLCV_DAY", 30, $A$1), 0, 5))`;
+- complete OHLCV data for last 30 days: `= SPARKLINE(INDEX(CRYPTOWALLET($B2, "OHLCV_DAY", 30), 0, 5))`;
+- complete OHLCV data for specific day: `= SPARKLINE(INDEX(CRYPTOWALLET($B2, "OHLCV_DAY", 1, "2020-12-31"), 0, 5))`;
 - display sparkline in the current cell from close price of last 30 days: 
   `= SPARKLINE(INDEX(CRYPTOWALLET("BTC/EUR", "OHLCV_DAY", 30), 0, 5))`;
 - simple user initiated data update can be defined using helper attribute `trigger`, first, insert Checkbox into some 
   cell, e.g. `A1`, then define function call using reference to that cell, in our case 
-  `= CRYPTOWALLET("BTC/EUR", "PRICE". "", $A$1)`, each time the checkbox is clicked, all referencing function 
+  `= CRYPTOWALLET("BTC/EUR", "PRICE". "", """, $A$1)`, each time the checkbox is clicked, all referencing function 
   definitions are updated;

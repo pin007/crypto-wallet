@@ -234,11 +234,12 @@ function fetchCryptoCompare(api) {
  * @param {"image"|"ohlcv_day"|"ohlcv_hour"|"ohlcv_minute"|"price"|...} attribute The attribute that should be returned
  *   for given currency, default is "price". For generic attributes see CryptoCompare API documentation
  *   https://min-api.cryptocompare.com/documentation?key=Price&cat=multipleSymbolsFullPriceEndpoint.
- * @param {number|date} limit The limit for retrieved data. Particularly useful for OHLCV data. Number of retrieved
- *   entries or day.
+ * @param {number} limit The number of returned OHLCV data points.
+ * @param {Date|string} toDate Return OHLCV data points before given date and time. Note that TODAY() function returns
+ *   time part of 00:00:00 respective to time zone of active Spreadsheet. The OHLCV history data use UTC time zone.
  * @return Processed data from CryptoCompare API.
  */
-function CRYPTOWALLET(ticker, attribute, limit, trigger) {
+function CRYPTOWALLET(ticker, attribute, limit, toDate, trigger) {
   let tickerMatch = ticker.match('^((?<exchange>\\w+):)?(?<fromSymbol>\\w+)(/(?<toSymbol>\\w+))?$');
 
   if (!tickerMatch) {
@@ -249,18 +250,21 @@ function CRYPTOWALLET(ticker, attribute, limit, trigger) {
   let fromSymbol = tickerMatch.groups.fromSymbol || 'BTC';
   let toSymbol = tickerMatch.groups.toSymbol || 'USD';
   let attr = attribute ? attribute.toUpperCase() : 'PRICE';
-  let lim = limit || 3;
+  let lim = limit || 1;
+  let toTs = toDate ? (new Date(toDate)).valueOf() / 1000 : 0;
 
+  let api = null;
   let data = null;
 
   if (attr.startsWith('OHLCV')) {
-    if (attr.endsWith('MINUTE')) {
-      data = fetchCryptoCompare(`/v2/histominute?fsym=${fromSymbol}&tsym=${toSymbol}&limit=${lim}`);
-    } else if (attr.endsWith('HOUR')) {
-      data = fetchCryptoCompare(`/v2/histohour?fsym=${fromSymbol}&tsym=${toSymbol}&limit=${lim}`);
-    } else {
-      data = fetchCryptoCompare(`/v2/histoday?fsym=${fromSymbol}&tsym=${toSymbol}&limit=${lim}`);
+    let period = attr.split('_').pop().toLowerCase();
+    api = `/v2/histo${period}?fsym=${fromSymbol}&tsym=${toSymbol}&limit=${lim}`;
+
+    if (toTs > 0) {
+      api = `${api}&toTs=${toTs}`;
     }
+
+    data = fetchCryptoCompare(api);
 
     if (attr.startsWith('OHLCV_CHANGEPCT')) {
       return ((data.Data.Data[data.Data.Data.length - 1].close / data.Data.Data[0].close) - 1) * 100;
@@ -269,18 +273,21 @@ function CRYPTOWALLET(ticker, attribute, limit, trigger) {
     } else {
       let result = [];
       let timeZone = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-      result.push(["Date", "Open", "High", "Low", "Close", `Volume ${fromSymbol}`, `Volume ${toSymbol}`]);
-      for (const item of data.Data.Data) {
+      result.push(["Date", "Open", "High", "Low", "Close", `Volume ${fromSymbol.toUpperCase()}`, `Volume ${toSymbol.toUpperCase()}`]);
+
+      for (let len = data.Data.Data.length, i = lim < len ? len - lim : 0; i < len; i++) {
+        let item = data.Data.Data[i];
         result.push([
-            Utilities.formatDate(new Date(item.time * 1000), timeZone, "yyyy-MM-dd HH:mm:ss"),
-            item.open,
-            item.high,
-            item.low,
-            item.close,
-            item.volumefrom,
-            item.volumeto
+          Utilities.formatDate(new Date(item.time * 1000), timeZone, "yyyy-MM-dd HH:mm:ss"),
+          item.open,
+          item.high,
+          item.low,
+          item.close,
+          item.volumefrom,
+          item.volumeto
         ]);
       }
+
       return result;
     }
   } else {
