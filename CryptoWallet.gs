@@ -43,11 +43,12 @@ function promptCWAPIKey() {
   let ui = SpreadsheetApp.getUi();
   let properties = PropertiesService.getUserProperties();
   let apiKey = properties.getProperty('CRYPTOWALLET_API_KEY');
+  let apiKeyMasked = apiKey ? apiKey.substring(0, 4) + ' **** ' + apiKey.substring(60) : '';
 
   let result = ui.prompt(
       'Set API key',
       'Set API key for your CryptoCompare account.' +
-      '\n\nCurrent API key: ' + (apiKey || ''),
+      '\n\nCurrent API key: ' + (apiKeyMasked || ''),
       ui.ButtonSet.OK_CANCEL);
 
   let button = result.getSelectedButton();
