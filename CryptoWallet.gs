@@ -184,16 +184,19 @@ function fetchCryptoCompare(api) {
   let response = null;
   let data = null;
 
-  let cache = null;
+  let cache = CacheService.getDocumentCache();
   let cachedData = null;
   const cacheExpiration = getCWCacheExpiration();
   let cacheKey = 'CW(' + api.replace(/[^\w]+/g, '_') + ')';
 
-  if (cacheExpiration > 0) {
-    cache = CacheService.getDocumentCache()
+  let lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    throw new Error('Failed to obtain lock!')
   }
 
-  if (cache) {
+  if (cacheExpiration > 0) {
     cachedData = cache.get(cacheKey);
   }
 
@@ -210,22 +213,30 @@ function fetchCryptoCompare(api) {
       Logger.log('Calling CryptoCompare API %s', api);
       response = UrlFetchApp.fetch(url + api, options);
       data = response.getContentText();
-      if (cache) {
+      if (cacheExpiration > 0) {
         try {
           Logger.log('Caching data for API call %s for %ss', api, cacheExpiration);
           let cachedBlob = Utilities.gzip(Utilities.newBlob(data));
           cachedData = Utilities.base64Encode(cachedBlob.getBytes());
           cache.put(cacheKey, cachedData, cacheExpiration);
         } catch (e) {
-          Logger.log('Failed to cache data for API call %s', api)
+          Logger.log('Failed to cache data for API call %s', api);
         }
+      } else {
+        Logger.log('Removing cache for API call %s', api);
+        cache.remove(cacheKey);
       }
     } catch (e) {
       throw new Error('Failed to call CryptoCompare API: ' + e.message);
     }
   }
 
+  if (lock) {
+    lock.releaseLock();
+  }
+
   return JSON.parse(data);
+
 }
 
 /**
